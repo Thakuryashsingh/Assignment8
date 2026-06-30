@@ -75,36 +75,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let cashFlowChartInstance = null;
 
-  initApplication();
+  initApp();
 
-  function initApplication() {
-    setupGlobalTheme();
-    setupRoutingView();
-    setupEventDelegation();
+  function initApp() {
+    applyTheme();
+    updateView();
+    bindEvents();
     
     if (state.currentUser) {
-      renderDashboardData();
+      renderDashboard();
     }
   }
 
-  function saveStateToStorage(key, data) {
+  function saveState(key, data) {
     state[key] = data;
     localStorage.setItem(`ftp_${key}`, JSON.stringify(data));
   }
 
-  function setupRoutingView() {
+  function updateView() {
     if (state.currentUser) {
       UI.authContainer.classList.add("hidden");
       UI.appContainer.classList.remove("hidden");
-      navigateToSection("dashboard");
+      goToSection("dashboard");
     } else {
       UI.appContainer.classList.add("hidden");
       UI.authContainer.classList.remove("hidden");
-      showAuthCard("login");
+      showAuthPanel("login");
     }
   }
 
-  function navigateToSection(targetPanel) {
+  function goToSection(targetPanel) {
     if (!state.currentUser) return;
     
     if (targetPanel === "dashboard") {
@@ -112,17 +112,17 @@ document.addEventListener("DOMContentLoaded", () => {
       UI.settingsPage.classList.add("hidden");
       UI.navDashboard.classList.add("active");
       UI.navSettings.classList.remove("active");
-      renderDashboardData();
+      renderDashboard();
     } else if (targetPanel === "settings") {
       UI.settingsPage.classList.remove("hidden");
       UI.dashboardPage.classList.add("hidden");
       UI.navSettings.classList.add("active");
       UI.navDashboard.classList.remove("active");
-      hydrateSettingsView();
+      loadSettings();
     }
   }
 
-  function showAuthCard(panel) {
+  function showAuthPanel(panel) {
     UI.loginError.style.display = "none";
     UI.registerError.style.display = "none";
     if (panel === "login") {
@@ -136,12 +136,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function setupGlobalTheme() {
+  function applyTheme() {
     document.documentElement.setAttribute("data-theme", state.theme);
     UI.themeToggle.checked = (state.theme === "dark");
   }
 
-  function setupEventDelegation() {
+  function bindEvents() {
     const registerLink = document.getElementById("to-register-btn");
     const loginLink = document.getElementById("to-login-btn");
 
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
       registerLink.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        showAuthCard("register");
+        showAuthPanel("register");
       });
     }
 
@@ -157,57 +157,57 @@ document.addEventListener("DOMContentLoaded", () => {
       loginLink.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        showAuthCard("login");
+        showAuthPanel("login");
       });
     }
 
-    UI.registerForm.addEventListener("submit", executeUserRegistration);
-    UI.loginForm.addEventListener("submit", executeUserAuthentication);
+    UI.registerForm.addEventListener("submit", registerUser);
+    UI.loginForm.addEventListener("submit", loginUser);
     
-    UI.loginUser.addEventListener("focus", displayUsernameSuggestions);
+    UI.loginUser.addEventListener("focus", showUsernameSuggestions);
     document.addEventListener("click", (e) => {
       if (!UI.loginUser.contains(e.target) && !UI.userSuggestions.contains(e.target)) {
         UI.userSuggestions.style.display = "none";
       }
     });
 
-    UI.navDashboard.addEventListener("click", () => navigateToSection("dashboard"));
-    UI.navSettings.addEventListener("click", () => navigateToSection("settings"));
-    UI.logoutBtn.addEventListener("click", executeSessionTermination);
+    UI.navDashboard.addEventListener("click", () => goToSection("dashboard"));
+    UI.navSettings.addEventListener("click", () => goToSection("settings"));
+    UI.logoutBtn.addEventListener("click", logoutUser);
 
-    UI.sidebarAddBtn.addEventListener("click", () => openTransactionModal());
-    UI.modalCloseIcon.addEventListener("click", closeTransactionModal);
-    UI.modalCancelBtn.addEventListener("click", closeTransactionModal);
-    UI.txType.addEventListener("change", (e) => populateCategoryDropdown(e.target.value));
-    UI.transactionForm.addEventListener("submit", processTransactionSave);
+    UI.sidebarAddBtn.addEventListener("click", () => openTransactionDialog());
+    UI.modalCloseIcon.addEventListener("click", closeTransactionDialog);
+    UI.modalCancelBtn.addEventListener("click", closeTransactionDialog);
+    UI.txType.addEventListener("change", (e) => populateCategories(e.target.value));
+    UI.transactionForm.addEventListener("submit", saveTransaction);
 
-    UI.txSearch.addEventListener("input", performDashboardRefreshRedraw);
-    UI.txFilter.addEventListener("change", performDashboardRefreshRedraw);
+    UI.txSearch.addEventListener("input", refreshDashboard);
+    UI.txFilter.addEventListener("change", refreshDashboard);
 
     UI.themeToggle.addEventListener("change", (e) => {
       const activeTheme = e.target.checked ? "dark" : "light";
       state.theme = activeTheme;
       localStorage.setItem("ftp_theme", activeTheme);
       document.documentElement.setAttribute("data-theme", activeTheme);
-      performDashboardRefreshRedraw();
+      refreshDashboard();
     });
 
-    UI.settingsForm.addEventListener("submit", persistSettingsModification);
-    UI.resetAllBtn.addEventListener("click", purgeApplicationStateDatabase);
+    UI.settingsForm.addEventListener("submit", saveSettings);
+    UI.resetAllBtn.addEventListener("click", resetAppData);
 
     UI.tableBody.addEventListener("click", (e) => {
       const editTrigger = e.target.closest(".edit-action");
       const deleteTrigger = e.target.closest(".delete-action");
       
       if (editTrigger) {
-        openTransactionModal(editTrigger.dataset.id);
+        openTransactionDialog(editTrigger.dataset.id);
       } else if (deleteTrigger) {
-        processTransactionRemoval(deleteTrigger.dataset.id);
+        deleteTransaction(deleteTrigger.dataset.id);
       }
     });
   }
 
-  function displayUsernameSuggestions() {
+  function showUsernameSuggestions() {
     UI.userSuggestions.innerHTML = "";
     if (state.users.length === 0) {
       UI.userSuggestions.style.display = "none";
@@ -229,7 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
     UI.userSuggestions.style.display = "block";
   }
 
-  function executeUserRegistration(e) {
+  function registerUser(e) {
     e.preventDefault();
     UI.registerError.style.display = "none";
 
@@ -248,13 +248,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const updatedUserPool = [...state.users, { username, password }];
-    saveStateToStorage("users", updatedUserPool);
+    saveState("users", updatedUserPool);
     
-    showAuthCard("login");
+    showAuthPanel("login");
     UI.loginUser.value = username;
   }
 
-  function executeUserAuthentication(e) {
+  function loginUser(e) {
     e.preventDefault();
     UI.loginError.style.display = "none";
 
@@ -271,13 +271,13 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("ftp_currentUser", targetedProfile.username);
     state.currentUser = targetedProfile.username;
     
-    setupRoutingView();
+    updateView();
   }
 
-  function executeSessionTermination() {
+  function logoutUser() {
     localStorage.removeItem("ftp_currentUser");
     state.currentUser = null;
-    setupRoutingView();
+    updateView();
   }
 
   function showError(element, text) {
@@ -285,7 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
     element.style.display = "block";
   }
 
-  function hydrateSettingsView() {
+  function loadSettings() {
     const userKey = state.currentUser;
     const profile = state.settings[userKey] || { fullName: userKey, currency: "USD|$" };
     
@@ -294,7 +294,7 @@ document.addEventListener("DOMContentLoaded", () => {
     UI.currencySelect.value = profile.currency || "USD|$";
   }
 
-  function persistSettingsModification(e) {
+  function saveSettings(e) {
     e.preventDefault();
     const userKey = state.currentUser;
     
@@ -306,12 +306,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    saveStateToStorage("settings", configuredSettings);
-    hydrateSettingsView();
-    navigateToSection("dashboard");
+    saveState("settings", configuredSettings);
+    loadSettings();
+    goToSection("dashboard");
   }
 
-  function getCurrentUserCurrencySymbol() {
+  function getCurrencySymbol() {
     const userKey = state.currentUser;
     const profile = state.settings[userKey];
     if (profile && profile.currency) {
@@ -320,11 +320,11 @@ document.addEventListener("DOMContentLoaded", () => {
     return "$";
   }
 
-  function getUserSpecificTransactions() {
+  function getUserTransactions() {
     return state.transactions.filter(t => t.userOwner === state.currentUser);
   }
 
-  function populateCategoryDropdown(type, preselectedValue = "") {
+  function populateCategories(type, preselectedValue = "") {
     UI.txCategory.innerHTML = "";
     const optionsList = categoriesMap[type] || [];
     
@@ -340,7 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function openTransactionModal(id = null) {
+  function openTransactionDialog(id = null) {
     UI.transactionForm.reset();
     
     if (id) {
@@ -354,22 +354,22 @@ document.addEventListener("DOMContentLoaded", () => {
       UI.txAmount.value = record.amount;
       UI.txDate.value = record.date;
       
-      populateCategoryDropdown(record.type, record.category);
+      populateCategories(record.type, record.category);
     } else {
       UI.modalTitle.textContent = "Add Transaction";
       UI.txId.value = "";
       UI.txType.value = "expense";
       UI.txDate.value = new Date().toISOString().split('T')[0];
-      populateCategoryDropdown("expense");
+      populateCategories("expense");
     }
     UI.transactionModal.classList.remove("hidden");
   }
 
-  function closeTransactionModal() {
+  function closeTransactionDialog() {
     UI.transactionModal.classList.add("hidden");
   }
 
-  function processTransactionSave(e) {
+  function saveTransaction(e) {
     e.preventDefault();
     if (!UI.transactionForm.checkValidity()) return;
 
@@ -394,30 +394,30 @@ document.addEventListener("DOMContentLoaded", () => {
       state.transactions.push(newTransaction);
     }
 
-    saveStateToStorage("transactions", state.transactions);
-    closeTransactionModal();
-    renderDashboardData();
+    saveState("transactions", state.transactions);
+    closeTransactionDialog();
+    renderDashboard();
   }
 
-  function processTransactionRemoval(id) {
+  function deleteTransaction(id) {
     if (!confirm("Are you sure you want to permanently delete this transaction ledger entry?")) return;
     
     const postClearanceTransactions = state.transactions.filter(t => t.id !== id);
-    saveStateToStorage("transactions", postClearanceTransactions);
-    renderDashboardData();
+    saveState("transactions", postClearanceTransactions);
+    renderDashboard();
   }
 
-  function performDashboardRefreshRedraw() {
-    const dataRecords = evaluateFilteredLedgerSet();
-    updateKpiSummaryDashboardMetrics(dataRecords);
-    renderLedgerDataTable(dataRecords);
-    buildCashFlowAnalysisChart(dataRecords);
+  function refreshDashboard() {
+    const dataRecords = getFilteredTransactions();
+    updateDashboardMetrics(dataRecords);
+    renderTransactionsTable(dataRecords);
+    renderCashFlowChart(dataRecords);
   }
 
-  function evaluateFilteredLedgerSet() {
+  function getFilteredTransactions() {
     const searchString = UI.txSearch.value.toLowerCase().trim();
     const filterCriteria = UI.txFilter.value;
-    const underlyingDataset = getUserSpecificTransactions();
+    const underlyingDataset = getUserTransactions();
 
     return underlyingDataset.filter(item => {
       const matchSearch = item.description.toLowerCase().includes(searchString);
@@ -426,16 +426,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function renderDashboardData() {
+  function renderDashboard() {
     const userKey = state.currentUser;
     const profile = state.settings[userKey] || { fullName: userKey, currency: "USD|$" };
     UI.userDisplayName.textContent = profile.fullName || userKey;
 
-    performDashboardRefreshRedraw();
+    refreshDashboard();
   }
 
-  function updateKpiSummaryDashboardMetrics(visibleDataset) {
-    const currencySymbol = getCurrentUserCurrencySymbol();
+  function updateDashboardMetrics(visibleDataset) {
+    const currencySymbol = getCurrencySymbol();
     let incomeSum = 0;
     let expenseSum = 0;
 
@@ -452,9 +452,9 @@ document.addEventListener("DOMContentLoaded", () => {
     UI.cardTransactions.textContent = visibleDataset.length.toString();
   }
 
-  function renderLedgerDataTable(dataset) {
+  function renderTransactionsTable(dataset) {
     UI.tableBody.innerHTML = "";
-    const symbol = getCurrentUserCurrencySymbol();
+    const symbol = getCurrencySymbol();
 
     if (dataset.length === 0) {
       UI.tableBody.innerHTML = `<tr><td colspan="5" class="text-muted" style="text-align: center; padding: 2rem;">No transaction parameters resolve to current visualization filter matching rules.</td></tr>`;
@@ -470,7 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       tr.innerHTML = `
         <td>${tx.date}</td>
-        <td style="font-weight: 600;">${escapeHtml(tx.description)}</td>
+        <td style="font-weight: 600;">${tx.description}</td>
         <td><span class="badge-category">${tx.category}</span></td>
         <td class="${contextualAmountClass}" style="font-weight: 600;">
           ${displayAmountPrefix}${symbol}${tx.amount.toFixed(2)}
@@ -490,7 +490,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function buildCashFlowAnalysisChart(dataset) {
+  function renderCashFlowChart(dataset) {
     if (cashFlowChartInstance) {
       cashFlowChartInstance.destroy();
     }
@@ -559,28 +559,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function purgeApplicationStateDatabase() {
-    if (!confirm("CRITICAL OPERATION WARNING:\nThis command irreversibly clears all local profiles, parameters, preferences, and logged ledger transactions. Proceed?")) return;
+  function resetAppData() {
+    if (!confirm("WARNING: This will delete all your transaction data permanently!")) return;
 
-    localStorage.clear();
-    
-    state = {
-      users: [],
-      currentUser: null,
-      settings: {},
-      transactions: [],
-      theme: "light"
-    };
+    const userKey = state.currentUser;
 
-    setupGlobalTheme();
-    setupRoutingView();
-  }
+    state.transactions = state.transactions.filter(t => t.userOwner !== userKey);
+    localStorage.setItem("ftp_transactions", JSON.stringify(state.transactions));
 
-  function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;")
-              .replace(/"/g, "&quot;")
-              .replace(/'/g, "&#039;");
+    renderDashboard();
   }
 });
